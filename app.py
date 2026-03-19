@@ -150,3 +150,33 @@ if st.button("Run Prediction"):
 
 st.markdown("---")
 st.caption("Model built using supply chain and environmental data")
+
+st.markdown("---")
+st.subheader("System Recommendation")
+
+if prob > 0.7:
+    decision = "Expedite shipment"
+elif prob > 0.4:
+    decision = "Monitor shipment closely"
+else:
+    decision = "Proceed normally"
+
+st.write("Recommended Action:", decision)
+
+if prob > 0.7:
+    st.warning("High risk of delay detected.")
+elif prob > 0.4:
+    st.info("Moderate delay risk.")
+else:
+    st.success("Low delay risk.")
+
+st.markdown("### Suggestions")
+
+if delivery_days > 5:
+    st.write("- Reduce delivery duration to lower delay risk.")
+
+if delay_gap > 1:
+    st.write("- Improve scheduling accuracy to avoid delays.")
+
+if shipping_mode == "Standard Class":
+    st.write("- Consider faster shipping methods.")
