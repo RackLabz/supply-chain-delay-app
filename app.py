@@ -1,27 +1,36 @@
 import streamlit as st
 import pandas as pd
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 
-# Load dataset from Google Drive
+st.set_page_config(layout="wide")
+
+# -------------------------------
+# LOAD DATA
+# -------------------------------
 df = pd.read_csv(
     "https://drive.google.com/uc?export=download&id=1gAW0M-orRx0BRh4eSsNk02bW9OqD_E7D",
     encoding="latin1"
 )
 
-# Target
+# -------------------------------
+# FEATURE ENGINEERING
+# -------------------------------
 df["delay_flag"] = df["Late_delivery_risk"]
 
-# Feature engineering
 df["order_date"] = pd.to_datetime(df["order date (DateOrders)"])
 df["shipping_date"] = pd.to_datetime(df["shipping date (DateOrders)"])
+
 df["delivery_days"] = (df["shipping_date"] - df["order_date"]).dt.days
 df["delay_gap"] = df["Days for shipping (real)"] - df["Days for shipment (scheduled)"]
 
-# Features
+# -------------------------------
+# MODEL TRAINING
+# -------------------------------
 features = [
     "Order Item Quantity",
     "Order Item Product Price",
@@ -37,10 +46,10 @@ features = [
 X = df[features]
 y = df["delay_flag"]
 
-# Split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-# Preprocessing
 numeric_features = [
     "Order Item Quantity",
     "Order Item Product Price",
@@ -65,52 +74,45 @@ model = Pipeline([
 
 model.fit(X_train, y_train)
 
-st.set_page_config(layout="wide")
-
-# Title
+# -------------------------------
+# UI
+# -------------------------------
 st.title("Supply Chain Delay Prediction")
-
-st.write("Estimate the likelihood of shipment delay based on operational inputs.")
+st.write("Predict shipment delay risk and get recommended actions")
 
 st.markdown("---")
 
-# Layout
-left, right = st.columns([1,1])
+col1, col2 = st.columns(2)
 
-# LEFT SIDE
-with left:
+with col1:
     st.subheader("Operational Inputs")
 
-    delivery_days = st.slider("Delivery Duration (days)", 1, 10, 3)
-    delay_gap = st.slider("Delay Gap (actual - scheduled)", -2, 5, 0)
+    delivery_days = st.slider("Delivery Days", 1, 10, 3)
+    delay_gap = st.slider("Delay Gap", -2, 5, 0)
 
-    quantity = st.number_input("Order Quantity", value=1)
+    quantity = st.number_input("Quantity", value=1)
     price = st.number_input("Product Price", value=50.0)
 
     shipping_mode = st.selectbox(
-        "Shipping Method",
+        "Shipping Mode",
         ["Standard Class", "Second Class", "First Class"]
     )
 
     region = st.selectbox(
-        "Operational Region",
+        "Order Region",
         ["West", "East", "Central", "South"]
     )
 
-# RIGHT SIDE
-with right:
+with col2:
     st.subheader("Financial Inputs")
 
-    sales = st.number_input("Sales Value", value=100.0)
-
-    st.subheader("Environmental Conditions")
-
-    temperature = st.slider("Temperature", 0, 40, 25)
-    humidity = st.slider("Humidity", 0.0, 1.0, 0.7)
-    wind_speed = st.slider("Wind Speed", 0, 50, 10)
+    sales = st.number_input("Sales", value=100.0)
 
 st.markdown("---")
 
+# -------------------------------
+# PREDICTION + AUTOMATION
+# -------------------------------
 if st.button("Run Prediction"):
 
     input_df = pd.DataFrame([{
@@ -121,9 +123,6 @@ if st.button("Run Prediction"):
         "Sales": sales,
         "delivery_days": delivery_days,
         "delay_gap": delay_gap,
-        "temperature": temperature,
-        "humidity": humidity,
-        "wind_speed": wind_speed,
         "Shipping Mode": shipping_mode,
         "Order Region": region
     }])
@@ -147,7 +146,9 @@ if st.button("Run Prediction"):
     with c2:
         st.metric("Risk Level", risk)
 
-    # AUTOMATION (NOW CORRECT)
+    # -------------------------------
+    # AUTOMATION
+    # -------------------------------
     st.markdown("---")
     st.subheader("System Recommendation")
 
