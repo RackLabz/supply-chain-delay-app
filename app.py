@@ -10,75 +10,86 @@ from sklearn.ensemble import RandomForestClassifier
 st.set_page_config(layout="wide")
 
 # -------------------------------
-# LOAD DATA
+# CACHE DATA
 # -------------------------------
-df = pd.read_csv(
-    "https://drive.google.com/uc?export=download&id=1gAW0M-orRx0BRh4eSsNk02bW9OqD_E7D",
-    encoding="latin1"
-)
-
-# -------------------------------
-# FEATURE ENGINEERING
-# -------------------------------
-df["delay_flag"] = df["Late_delivery_risk"]
-
-df["order_date"] = pd.to_datetime(df["order date (DateOrders)"])
-df["shipping_date"] = pd.to_datetime(df["shipping date (DateOrders)"])
-
-df["delivery_days"] = (df["shipping_date"] - df["order_date"]).dt.days
-df["delay_gap"] = df["Days for shipping (real)"] - df["Days for shipment (scheduled)"]
+@st.cache_data
+def load_data():
+    df = pd.read_csv(
+        "https://drive.google.com/uc?export=download&id=1gAW0M-orRx0BRh4eSsNk02bW9OqD_E7D",
+        encoding="latin1"
+    )
+    return df
 
 # -------------------------------
-# MODEL TRAINING
+# CACHE MODEL
 # -------------------------------
-features = [
-    "Order Item Quantity",
-    "Order Item Product Price",
-    "Order Item Discount",
-    "Order Item Profit Ratio",
-    "Sales",
-    "delivery_days",
-    "delay_gap",
-    "Shipping Mode",
-    "Order Region"
-]
+@st.cache_resource
+def train_model(df):
 
-X = df[features]
-y = df["delay_flag"]
+    df["delay_flag"] = df["Late_delivery_risk"]
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+    df["order_date"] = pd.to_datetime(df["order date (DateOrders)"])
+    df["shipping_date"] = pd.to_datetime(df["shipping date (DateOrders)"])
 
-numeric_features = [
-    "Order Item Quantity",
-    "Order Item Product Price",
-    "Order Item Discount",
-    "Order Item Profit Ratio",
-    "Sales",
-    "delivery_days",
-    "delay_gap"
-]
+    df["delivery_days"] = (df["shipping_date"] - df["order_date"]).dt.days
+    df["delay_gap"] = df["Days for shipping (real)"] - df["Days for shipment (scheduled)"]
 
-categorical_features = ["Shipping Mode", "Order Region"]
+    features = [
+        "Order Item Quantity",
+        "Order Item Product Price",
+        "Order Item Discount",
+        "Order Item Profit Ratio",
+        "Sales",
+        "delivery_days",
+        "delay_gap",
+        "Shipping Mode",
+        "Order Region"
+    ]
 
-preprocessor = ColumnTransformer([
-    ("num", StandardScaler(), numeric_features),
-    ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
-])
+    X = df[features]
+    y = df["delay_flag"]
 
-model = Pipeline([
-    ("preprocessor", preprocessor),
-    ("classifier", RandomForestClassifier())
-])
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-model.fit(X_train, y_train)
+    numeric_features = [
+        "Order Item Quantity",
+        "Order Item Product Price",
+        "Order Item Discount",
+        "Order Item Profit Ratio",
+        "Sales",
+        "delivery_days",
+        "delay_gap"
+    ]
+
+    categorical_features = ["Shipping Mode", "Order Region"]
+
+    preprocessor = ColumnTransformer([
+        ("num", StandardScaler(), numeric_features),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+    ])
+
+    model = Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", RandomForestClassifier())
+    ])
+
+    model.fit(X_train, y_train)
+
+    return model
+
+# -------------------------------
+# LOAD EVERYTHING
+# -------------------------------
+df = load_data()
+model = train_model(df)
 
 # -------------------------------
 # UI
 # -------------------------------
 st.title("Supply Chain Delay Prediction")
-st.write("Predict shipment delay risk and get recommended actions")
+st.write("Predict shipment delay risk and get recommendations")
 
 st.markdown("---")
 
@@ -111,7 +122,7 @@ with col2:
 st.markdown("---")
 
 # -------------------------------
-# PREDICTION + AUTOMATION
+# PREDICTION
 # -------------------------------
 if st.button("Run Prediction"):
 
@@ -146,35 +157,12 @@ if st.button("Run Prediction"):
     with c2:
         st.metric("Risk Level", risk)
 
-    # -------------------------------
-    # AUTOMATION
-    # -------------------------------
     st.markdown("---")
     st.subheader("System Recommendation")
 
     if prob > 0.7:
-        decision = "Expedite shipment"
+        st.warning("High risk detected. Expedite shipment.")
     elif prob > 0.4:
-        decision = "Monitor shipment closely"
+        st.info("Moderate risk. Monitor closely.")
     else:
-        decision = "Proceed normally"
-
-    st.write("Recommended Action:", decision)
-
-    if prob > 0.7:
-        st.warning("High risk of delay detected.")
-    elif prob > 0.4:
-        st.info("Moderate delay risk.")
-    else:
-        st.success("Low delay risk.")
-
-    st.markdown("### Suggestions")
-
-    if delivery_days > 5:
-        st.write("- Reduce delivery duration.")
-
-    if delay_gap > 1:
-        st.write("- Improve scheduling accuracy.")
-
-    if shipping_mode == "Standard Class":
-        st.write("- Consider faster shipping.")
+        st.success("Low risk. Proceed normally.")
