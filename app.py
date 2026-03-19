@@ -147,7 +147,7 @@ if st.button("Run Prediction"):
     with c2:
         st.metric("Risk Level", risk)
 
-    # 🔥 AUTOMATION STARTS HERE
+    # AUTOMATION (NOW CORRECT)
     st.markdown("---")
     st.subheader("System Recommendation")
 
