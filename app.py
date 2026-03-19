@@ -10,7 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 st.set_page_config(layout="wide")
 
 # -------------------------------
-# CACHE DATA
+# LOAD DATA (CACHED)
 # -------------------------------
 @st.cache_data
 def load_data():
@@ -21,7 +21,7 @@ def load_data():
     return df
 
 # -------------------------------
-# CACHE MODEL
+# TRAIN MODEL (CACHED)
 # -------------------------------
 @st.cache_resource
 def train_model(df):
@@ -49,7 +49,7 @@ def train_model(df):
     X = df[features]
     y = df["delay_flag"]
 
-    X_train, X_test, y_train, y_test = train_test_split(
+    X_train, _, y_train, _ = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
@@ -122,7 +122,7 @@ with col2:
 st.markdown("---")
 
 # -------------------------------
-# PREDICTION
+# PREDICTION (SAFE)
 # -------------------------------
 if st.button("Run Prediction"):
 
