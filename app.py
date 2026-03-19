@@ -1,108 +1,38 @@
 import streamlit as st
 import pandas as pd
 import json
-
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestClassifier
+import requests
+import joblib
+import tempfile
 
 st.set_page_config(layout="wide")
 
 # -------------------------------
-# LOAD DATA (CACHED)
-# -------------------------------
-@st.cache_data
-def load_data():
-    df = pd.read_csv(
-        "https://drive.google.com/uc?export=download&id=1gAW0M-orRx0BRh4eSsNk02bW9OqD_E7D",
-        encoding="latin1"
-    )
-    return df
-
-# -------------------------------
-# TRAIN MODEL (CACHED)
+# LOAD MODEL FROM GOOGLE DRIVE
 # -------------------------------
 @st.cache_resource
-def train_model(df):
+def load_model():
+    url = "https://drive.google.com/uc?export=download&id=1Idw3tCBakPP39q8G78RJevKG_fmj2NP8"
 
-    df["delay_flag"] = df["Late_delivery_risk"]
+    response = requests.get(url)
 
-    df["order_date"] = pd.to_datetime(df["order date (DateOrders)"])
-    df["shipping_date"] = pd.to_datetime(df["shipping date (DateOrders)"])
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(response.content)
+        tmp_path = tmp.name
 
-    df["delivery_days"] = (df["shipping_date"] - df["order_date"]).dt.days
-    df["delay_gap"] = df["Days for shipping (real)"] - df["Days for shipment (scheduled)"]
-
-    features = [
-        "Order Item Quantity",
-        "Order Item Product Price",
-        "Order Item Discount",
-        "Order Item Profit Ratio",
-        "Sales",
-        "delivery_days",
-        "delay_gap",
-        "Shipping Mode",
-        "Order Region"
-    ]
-
-    X = df[features]
-    y = df["delay_flag"]
-
-    X_train, _, y_train, _ = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    numeric_features = [
-        "Order Item Quantity",
-        "Order Item Product Price",
-        "Order Item Discount",
-        "Order Item Profit Ratio",
-        "Sales",
-        "delivery_days",
-        "delay_gap"
-    ]
-
-    categorical_features = ["Shipping Mode", "Order Region"]
-
-    preprocessor = ColumnTransformer([
-        ("num", StandardScaler(), numeric_features),
-        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
-    ])
-
-    model = Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", RandomForestClassifier())
-    ])
-
-    model.fit(X_train, y_train)
-
+    model = joblib.load(tmp_path)
     return model
 
-# -------------------------------
-# LOAD SYSTEM
-# -------------------------------
-df = load_data()
-model = train_model(df)
+model = load_model()
 
 # -------------------------------
-# DASHBOARD
+# UI
 # -------------------------------
 st.title("Supply Chain Delay Prediction System")
-st.write("Predict delays, get recommendations, and simulate outcomes")
+st.write("Predict delay risk, simulate outcomes, and get recommendations")
 
 st.markdown("---")
 
-st.subheader("Historical Delay Distribution")
-delay_counts = df["Late_delivery_risk"].value_counts()
-st.bar_chart(delay_counts)
-
-st.markdown("---")
-
-# -------------------------------
-# INPUT UI
-# -------------------------------
 col1, col2 = st.columns(2)
 
 with col1:
@@ -181,7 +111,7 @@ if st.button("Run Prediction"):
         st.success("Low risk. Proceed normally.")
 
     # -------------------------------
-    # WHAT-IF SIMULATOR
+    # WHAT-IF SIMULATION
     # -------------------------------
     st.markdown("---")
     st.subheader("What-if Simulation")
@@ -199,7 +129,6 @@ if st.button("Run Prediction"):
     # DOWNLOAD REPORT
     # -------------------------------
     st.markdown("---")
-    st.subheader("Download Report")
 
     report = {
         "probability": float(prob),
