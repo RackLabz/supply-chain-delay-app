@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import json
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -80,19 +81,28 @@ def train_model(df):
     return model
 
 # -------------------------------
-# LOAD EVERYTHING
+# LOAD SYSTEM
 # -------------------------------
 df = load_data()
 model = train_model(df)
 
 # -------------------------------
-# UI
+# DASHBOARD
 # -------------------------------
-st.title("Supply Chain Delay Prediction")
-st.write("Predict shipment delay risk and get recommendations")
+st.title("Supply Chain Delay Prediction System")
+st.write("Predict delays, get recommendations, and simulate outcomes")
 
 st.markdown("---")
 
+st.subheader("Historical Delay Distribution")
+delay_counts = df["Late_delivery_risk"].value_counts()
+st.bar_chart(delay_counts)
+
+st.markdown("---")
+
+# -------------------------------
+# INPUT UI
+# -------------------------------
 col1, col2 = st.columns(2)
 
 with col1:
@@ -122,7 +132,7 @@ with col2:
 st.markdown("---")
 
 # -------------------------------
-# PREDICTION (SAFE)
+# PREDICTION
 # -------------------------------
 if st.button("Run Prediction"):
 
@@ -157,6 +167,9 @@ if st.button("Run Prediction"):
     with c2:
         st.metric("Risk Level", risk)
 
+    # -------------------------------
+    # AUTOMATION
+    # -------------------------------
     st.markdown("---")
     st.subheader("System Recommendation")
 
@@ -166,3 +179,38 @@ if st.button("Run Prediction"):
         st.info("Moderate risk. Monitor closely.")
     else:
         st.success("Low risk. Proceed normally.")
+
+    # -------------------------------
+    # WHAT-IF SIMULATOR
+    # -------------------------------
+    st.markdown("---")
+    st.subheader("What-if Simulation")
+
+    test_days = st.slider("Test Delivery Days", 1, 10, delivery_days)
+
+    test_input = input_df.copy()
+    test_input["delivery_days"] = test_days
+
+    test_prob = model.predict_proba(test_input)[0][1]
+
+    st.write(f"New Delay Probability: {test_prob:.2f}")
+
+    # -------------------------------
+    # DOWNLOAD REPORT
+    # -------------------------------
+    st.markdown("---")
+    st.subheader("Download Report")
+
+    report = {
+        "probability": float(prob),
+        "risk": risk,
+        "delivery_days": delivery_days,
+        "delay_gap": delay_gap
+    }
+
+    st.download_button(
+        label="Download Prediction Report",
+        data=json.dumps(report, indent=2),
+        file_name="prediction_report.json",
+        mime="application/json"
+    )
