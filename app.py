@@ -1,10 +1,71 @@
 import streamlit as st
 import pandas as pd
-import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+
+# Load dataset from Google Drive
+df = pd.read_csv(
+    "https://drive.google.com/uc?export=download&id=1gAW0M-orRx0BRh4eSsNk02bW9OqD_E7D",
+    encoding="latin1"
+)
+
+# Target
+df["delay_flag"] = df["Late_delivery_risk"]
+
+# Feature engineering
+df["order_date"] = pd.to_datetime(df["order date (DateOrders)"])
+df["shipping_date"] = pd.to_datetime(df["shipping date (DateOrders)"])
+df["delivery_days"] = (df["shipping_date"] - df["order_date"]).dt.days
+df["delay_gap"] = df["Days for shipping (real)"] - df["Days for shipment (scheduled)"]
+
+# Features
+features = [
+    "Order Item Quantity",
+    "Order Item Product Price",
+    "Order Item Discount",
+    "Order Item Profit Ratio",
+    "Sales",
+    "delivery_days",
+    "delay_gap",
+    "Shipping Mode",
+    "Order Region"
+]
+
+X = df[features]
+y = df["delay_flag"]
+
+# Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Preprocessing
+numeric_features = [
+    "Order Item Quantity",
+    "Order Item Product Price",
+    "Order Item Discount",
+    "Order Item Profit Ratio",
+    "Sales",
+    "delivery_days",
+    "delay_gap"
+]
+
+categorical_features = ["Shipping Mode", "Order Region"]
+
+preprocessor = ColumnTransformer([
+    ("num", StandardScaler(), numeric_features),
+    ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+])
+
+model = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", RandomForestClassifier())
+])
+
+model.fit(X_train, y_train)
 
 st.set_page_config(layout="wide")
-
-model = joblib.load("model.pkl")
 
 # Title
 st.title("Supply Chain Delay Prediction")
